@@ -1,0 +1,53 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "2.1.1",
+  "id": "f29f2aa1-355e-422b-acba-516c168ae3b5",
+  "packageName": "com.globiq.teams.passwordmanager",
+  "developer": {
+    "name": "GlobiQ",
+    "websiteUrl": "https://globiq.com",
+    "privacyUrl": "https://globiq.com/privacy",
+    "termsOfUseUrl": "https://globiq.com/terms"
+  },
+  "name": {
+    "short": "Password Manager",
+    "full": "GlobiQ Password Manager AUTO-LOGIN v2.1.1"
+  },
+  "description": {
+    "short": "Secure password manager with automatic Teams authentication",
+    "full": "Enterprise password manager for Teams with AUTO-LOGIN functionality - no login barriers, automatic Teams SSO authentication, direct dashboard access with fallback to demo mode."
+  },
+  "icons": {
+    "outline": "outline.png",
+    "color": "color.png"
+  },
+  "accentColor": "#0078D4",
+  "staticTabs": [
+    {
+      "entityId": "passwordManager",
+      "name": "Password Manager",
+      "contentUrl": "https://globiqlockbox-d2e9dndydpajajdz.southeastasia-01.azurewebsites.net",
+      "scopes": [
+        "personal"
+      ]
+    }
+  ],
+  "configurableTabs": [
+    {
+      "configurationUrl": "https://globiqlockbox-d2e9dndydpajajdz.southeastasia-01.azurewebsites.net/configure",
+      "canUpdateConfiguration": true,
+      "scopes": [
+        "team",
+        "groupchat"
+      ]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "globiqlockbox-d2e9dndydpajajdz.southeastasia-01.azurewebsites.net"
+  ]
+}

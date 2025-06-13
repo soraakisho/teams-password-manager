@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teams Password Manager</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://res.cdn.office.net/teams-js/2.0.0/js/MicrosoftTeams.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Teams Password Manager</h1>
+            <p>Securely store and manage your credentials</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('add', this)">Add Credential</button>
+            <button class="tab" onclick="showTab('view', this)">View Credentials</button>
+        </div>
+
+        <div id="addTab" class="tab-content active">
+            <form id="credentialForm" onsubmit="saveCredential(event)">
+                <div class="form-group">
+                    <label for="credentialName">Name</label>
+                    <input type="text" id="credentialName" required placeholder="e.g. Gmail, GitHub">
+                </div>
+                
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" required placeholder="Enter username or email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required>
+                    <div class="password-strength">
+                        <div class="password-strength-meter">
+                            <div id="passwordStrengthMeter"></div>
+                        </div>
+                        <div id="passwordStrengthText" class="password-strength-text"></div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="primary">Save Credential</button>
+            </form>
+        </div>
+
+        <div id="viewTab" class="tab-content">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search credentials..." onkeyup="filterCredentials()">
+            </div>
+            <div id="credentialsList"></div>
+        </div>
+    </div>
+    <script src="js/app.js"></script>
+</body>
+</html>
