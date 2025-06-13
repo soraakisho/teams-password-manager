@@ -5,14 +5,27 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// Security middleware
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    next();
+});
+
+// Standard middleware
+app.use(cors({
+    origin: ['https://soraakisho.github.io', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'DELETE'],
+    credentials: true
+}));
 app.use(bodyParser.json());
-app.use(express.static('./'));  // Serve static files from root directory
+app.use(express.static('./'));
 
-// Local storage path for passwords
+// Data directory setup
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR);
@@ -88,8 +101,14 @@ app.delete('/api/passwords/:id', (req, res) => {
     }
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
+});
+
 // Start server
 app.listen(port, () => {
-    console.log(`🚀 Server running at http://localhost:${port}`);
-    console.log(`📂 Serving Password Manager from ${__dirname}`);
+    console.log(`Server running at http://localhost:${port}`);
+    console.log('Press Ctrl+C to stop');
 });
