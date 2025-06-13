@@ -1,95 +1,98 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const fs = require('fs');
-const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const connectDB = require('./config/db');
+const { encrypt, decrypt } = require('./utils/encryption');
+const Credential = require('./models/credential');
 
 const app = express();
-const port = 3000;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static('./'));  // Serve static files from root directory
+// Security middleware
+app.use(helmet());
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    credentials: true
+}));
+app.use(express.json());
 
-// Local storage path for passwords
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR);
-}
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', limiter);
 
-// In-memory cache
-const passwords = new Map();
-const users = new Map();
-
-// Helper function to get user's password file path
-function getUserPasswordsPath(userEmail) {
-    return path.join(DATA_DIR, `${Buffer.from(userEmail).toString('base64')}.json`);
-}
-
-// Helper function to read user passwords
-function readUserPasswords(userEmail) {
-    const filePath = getUserPasswordsPath(userEmail);
-    try {
-        if (fs.existsSync(filePath)) {
-            const data = fs.readFileSync(filePath, 'utf8');
-            return JSON.parse(data);
-        }
-    } catch (error) {
-        console.error(`Error reading passwords for ${userEmail}:`, error);
-    }
-    return {};
-}
-
-// Helper function to save user passwords
-function saveUserPasswords(userEmail, passwords) {
-    const filePath = getUserPasswordsPath(userEmail);
-    try {
-        fs.writeFileSync(filePath, JSON.stringify(passwords, null, 2));
-        return true;
-    } catch (error) {
-        console.error(`Error saving passwords for ${userEmail}:`, error);
-        return false;
-    }
-}
+// Connect to MongoDB
+connectDB();
 
 // API Routes
-app.get('/api/passwords', (req, res) => {
-    const userEmail = req.headers['x-user-email'];
-    const userPasswords = readUserPasswords(userEmail);
-    res.json({ success: true, passwords: userPasswords });
-});
-
-app.post('/api/passwords', (req, res) => {
-    const userEmail = req.headers['x-user-email'];
-    const id = Date.now().toString();
-    const userPasswords = readUserPasswords(userEmail);
-    
-    userPasswords[id] = { ...req.body, userEmail };
-    
-    if (saveUserPasswords(userEmail, userPasswords)) {
-        res.json({ success: true, id });
-    } else {
-        res.status(500).json({ success: false, message: 'Failed to save password' });
+app.post('/api/credentials', async (req, res) => {
+    try {
+        const { website, username, password } = req.body;
+        if (!website || !username || !password) {
+            return res.status(400).json({
+                success: false,
+                error: "Missing required fields"
+            });
+        }
+        // Encrypt password if encryption is available, otherwise store as is
+        let encryptedPassword = password;
+        if (typeof encrypt === 'function') {
+            encryptedPassword = encrypt(password);
+        }
+        const credential = new Credential({
+            website,
+            username,
+            password: encryptedPassword
+        });
+        await credential.save();
+        res.json({ success: true, id: credential._id });
+    } catch (error) {
+        console.error('Save credential error:', error);
+        res.status(500).json({
+            success: false,
+            error: "Failed to save credential"
+        });
     }
 });
 
-app.delete('/api/passwords/:id', (req, res) => {
-    const { id } = req.params;
-    const userEmail = req.headers['x-user-email'];
-    const userPasswords = readUserPasswords(userEmail);
-    
-    delete userPasswords[id];
-    
-    if (saveUserPasswords(userEmail, userPasswords)) {
-        res.json({ success: true });
-    } else {
-        res.status(500).json({ success: false, message: 'Failed to delete password' });
+app.get('/api/credentials', async (req, res) => {
+    try {
+        const credentials = await Credential.find({}).lean();
+        // Decrypt if available
+        const decryptedCredentials = credentials.map(cred => ({
+            ...cred,
+            password: (typeof decrypt === 'function') ? decrypt(cred.password) : cred.password
+        }));
+        res.json(decryptedCredentials);
+    } catch (error) {
+        console.error('Retrieve credentials error:', error);
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve credentials"
+        });
     }
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+    });
 });
 
 // Start server
-app.listen(port, () => {
-    console.log(`🚀 Server running at http://localhost:${port}`);
-    console.log(`📂 Serving Password Manager from ${__dirname}`);
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
