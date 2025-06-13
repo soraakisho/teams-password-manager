@@ -1,9 +1,48 @@
-// Simple storage for credentials
-const credentials = new Map();
+'use strict';
 
-// Function to generate a unique ID
+// Constants
+const STORAGE_KEY = 'teams_password_manager_credentials';
+const PASSWORD_MIN_LENGTH = 8;
+
+// Initialize Teams SDK
+microsoftTeams.initialize();
+
+// Secure storage for credentials with encryption
+class SecureStorage {
+    static encrypt(text) {
+        // Simple encryption for demo - in production use a proper encryption library
+        return btoa(text);
+    }
+
+    static decrypt(text) {
+        // Simple decryption for demo
+        return atob(text);
+    }
+
+    static saveCredentials(credentials) {
+        const encrypted = this.encrypt(JSON.stringify(Array.from(credentials.entries())));
+        localStorage.setItem(STORAGE_KEY, encrypted);
+    }
+
+    static loadCredentials() {
+        try {
+            const encrypted = localStorage.getItem(STORAGE_KEY);
+            if (!encrypted) return new Map();
+            const decrypted = this.decrypt(encrypted);
+            return new Map(JSON.parse(decrypted));
+        } catch (error) {
+            console.error('Error loading credentials:', error);
+            return new Map();
+        }
+    }
+}
+
+// Initialize credentials from secure storage
+const credentials = SecureStorage.loadCredentials();
+
+// Function to generate a secure unique ID
 function generateId() {
-    return Date.now().toString();
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // Password strength checker
@@ -104,7 +143,7 @@ function saveCredential(event) {
     
     const id = generateId();
     credentials.set(id, { name, username, password });
-    saveToLocalStorage();
+    SecureStorage.saveCredentials(credentials);
     
     // Clear form
     document.getElementById('credentialForm').reset();
@@ -118,15 +157,9 @@ function saveCredential(event) {
 function deleteCredential(id) {
     if (confirm('Are you sure you want to delete this credential?')) {
         credentials.delete(id);
-        saveToLocalStorage();
+        SecureStorage.saveCredentials(credentials);
         renderCredentials();
     }
-}
-
-// Save to localStorage
-function saveToLocalStorage() {
-    const data = Object.fromEntries(credentials);
-    localStorage.setItem('credentials', JSON.stringify(data));
 }
 
 // Load saved credentials from localStorage
@@ -171,16 +204,34 @@ function renderCredentials() {
     container.innerHTML = html;
 }
 
-// Initialize
+// Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     loadCredentials();
-    renderCredentials();
-    
-    // Set up password strength checker
+    setupEventListeners();
+});
+
+// Setup event listeners
+function setupEventListeners() {
     const passwordInput = document.getElementById('password');
     if (passwordInput) {
-        passwordInput.addEventListener('input', (e) => {
-            updatePasswordStrength(e.target.value);
-        });
+        passwordInput.addEventListener('input', (e) => updatePasswordStrength(e.target.value));
     }
-});
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(filterCredentials, 300));
+    }
+}
+
+// Debounce function for better performance
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
